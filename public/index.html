@@ -5,17 +5,102 @@
   <title>Dashboard czasu odpowiedzi</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    body { font-family: 'Inter', Arial, sans-serif; background: #f7f8f5; margin: 0; }
-    .container { max-width: 1200px; margin: 40px auto; }
-    .header { font-size: 1.5rem; font-weight: 500; margin-bottom: 15px; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    :root {
+      --axabee-primary: #0066FF;
+      --axabee-primary-dark: #0052CC;
+      --axabee-secondary: #1E293B;
+      --axabee-accent: #10B981;
+      --axabee-bg: #F8FAFC;
+      --axabee-text: #1E293B;
+      --axabee-text-light: #64748B;
+      --axabee-border: #E2E8F0;
+      --axabee-error: #EF4444;
+    }
+    
+    * { box-sizing: border-box; }
+    
+    body { 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; 
+      background: var(--axabee-bg); 
+      margin: 0; 
+      color: var(--axabee-text);
+      line-height: 1.6;
+    }
+    
+    .container { 
+      max-width: 1200px; 
+      margin: 40px auto; 
+      padding: 0 20px;
+    }
+    
+    .logo-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 24px;
+      border-bottom: 2px solid var(--axabee-border);
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+    }
+    
+    .logo-header .logo-img {
+      height: 40px;
+      width: auto;
+      max-width: 150px;
+    }
+    
+    .logo-header .logo-text {
+      font-family: 'Inter', sans-serif;
+      letter-spacing: -0.5px;
+    }
+    
+    .header { 
+      font-size: 1.5rem; 
+      font-weight: 600; 
+      margin-bottom: 24px; 
+      color: var(--axabee-text);
+    }
     .service-grid { display: flex; flex-wrap: wrap; gap: 28px; }
-    .service-card { background: #fff; border-radius: 14px; box-shadow: 0 0 16px #eee; padding: 22px 14px 18px 18px; flex: 1; min-width: 320px; max-width: 340px; display: flex; flex-direction: column; }
-    .card-header { font-size: 1.18rem; font-weight: 700; color: #1a2b34; margin-bottom: 8px; }
-    .card-sub { color: #718287; margin-bottom: 16px; }
+    .service-card { 
+      background: #fff; 
+      border-radius: 12px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); 
+      padding: 24px; 
+      flex: 1; 
+      min-width: 320px; 
+      max-width: 340px; 
+      display: flex; 
+      flex-direction: column;
+      border: 1px solid var(--axabee-border);
+      transition: box-shadow 0.2s, transform 0.2s;
+    }
+    
+    .service-card:hover {
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+      transform: translateY(-2px);
+    }
+    
+    .card-header { 
+      font-size: 1.18rem; 
+      font-weight: 600; 
+      color: var(--axabee-text); 
+      margin-bottom: 8px; 
+    }
+    .card-sub { 
+      color: var(--axabee-text-light); 
+      margin-bottom: 16px; 
+      font-size: 0.9rem;
+    }
     .bar-chart { display: flex; align-items: flex-end; height: 90px; margin-bottom: 10px; gap: 3px; cursor: pointer; }
-    .bar { width: 12px; border-radius: 4px 4px 0 0; transition: background .2s; position: relative;}
-    .bar.ok { background: #319376; }
-    .bar.err { background: #d34040; }
+    .bar { width: 12px; border-radius: 4px 4px 0 0; transition: background .2s; position: relative; pointer-events: none;}
+    .bar.ok { background: var(--axabee-accent); }
+    .bar.err { background: var(--axabee-error); }
     .bar:hover::after {
       content: attr(data-tooltip);
       position: absolute;
@@ -25,35 +110,250 @@
       white-space: nowrap; z-index: 2;
     }
     .flex-btn { display: flex; align-items: center; gap: 0; }
-    .test-btn { flex: 7; padding: 8px 0; background: #25829e; color: #fff; border: none; border-top-left-radius: 7px; border-bottom-left-radius: 7px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: background .2s;}
-    .test-btn:hover { background: #319376; }
-    .delete-btn { flex: 3; padding: 8px 0; background: #e44747; color: #fff; border: none; border-top-right-radius: 7px; border-bottom-right-radius: 7px; font-size: 1rem; font-weight: bold; cursor: pointer; }
-    .delete-btn:hover { background: #d34040; }
-    .modal-bg { position: fixed; top:0; left:0; width: 100vw; height: 100vh; background: rgba(44,59,80,.32); display: flex; align-items: center; justify-content: center; z-index: 100; }
-    .modal-content { background: #fff; border-radius: 15px; padding: 32px 24px; box-shadow: 0 8px 36px #ccc; max-width: 820px; width: 100%; position: relative; }
-    .close-modal { position: absolute; right: 26px; top: 18px; font-size: 1.3rem; background: none; border: none; color: #e44747; cursor: pointer; }
+    .test-btn { 
+      flex: 7; 
+      padding: 10px 0; 
+      background: var(--axabee-primary); 
+      color: #fff; 
+      border: none; 
+      border-top-left-radius: 8px; 
+      border-bottom-left-radius: 8px; 
+      font-weight: 600; 
+      font-size: 0.95rem; 
+      cursor: pointer; 
+      transition: background .2s;
+    }
+    .test-btn:hover { 
+      background: var(--axabee-primary-dark); 
+    }
+    .delete-btn { 
+      flex: 3; 
+      padding: 10px 0; 
+      background: var(--axabee-error); 
+      color: #fff; 
+      border: none; 
+      border-top-right-radius: 8px; 
+      border-bottom-right-radius: 8px; 
+      font-size: 0.95rem; 
+      font-weight: 600; 
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .delete-btn:hover { 
+      background: #DC2626; 
+    }
+    .modal-bg { 
+      position: fixed; 
+      top:0; 
+      left:0; 
+      width: 100vw; 
+      height: 100vh; 
+      background: rgba(30, 41, 59, 0.5); 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      z-index: 100; 
+      backdrop-filter: blur(4px);
+    }
+    .modal-content { 
+      background: #fff; 
+      border-radius: 12px; 
+      padding: 32px 24px; 
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); 
+      max-width: 820px; 
+      width: 100%; 
+      position: relative;
+      border: 1px solid var(--axabee-border);
+    }
+    .close-modal { 
+      position: absolute; 
+      right: 24px; 
+      top: 20px; 
+      font-size: 1.5rem; 
+      background: none; 
+      border: none; 
+      color: var(--axabee-text-light); 
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .close-modal:hover {
+      background: var(--axabee-bg);
+      color: var(--axabee-error);
+    }
     .detail-chart { width: 100%; height: 220px; margin-bottom: 14px; }
-    .date-filter { display: flex; gap: 14px; margin-bottom: 18px; align-items: center; }
-    .stats-table { border-collapse: collapse; width: 100%; margin-bottom: 10px;}
-    .stats-table th, .stats-table td { border: 1px solid #eee; padding: 6px 12px; text-align: left; font-size: 1.02rem;}
-    .stats-table th { background: #f1f3f6;}
-    .export-btn { margin-top: 10px; padding: 9px 24px; background: #319376; color: #fff; border: none; border-radius: 6px; font-weight: 500; font-size: 1rem; cursor: pointer; }
+    .date-filter { 
+      display: flex; 
+      gap: 12px; 
+      margin-bottom: 24px; 
+      align-items: center; 
+      flex-wrap: wrap;
+    }
+    .date-filter label {
+      font-weight: 500;
+      color: var(--axabee-text);
+      font-size: 0.9rem;
+    }
+    .date-filter input[type="date"] {
+      padding: 8px 12px;
+      border: 1px solid var(--axabee-border);
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      color: var(--axabee-text);
+    }
+    .date-filter input[type="date"]:focus {
+      outline: none;
+      border-color: var(--axabee-primary);
+      box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+    }
+    .stats-table { 
+      border-collapse: collapse; 
+      width: 100%; 
+      margin-bottom: 10px;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .stats-table th, .stats-table td { 
+      border: 1px solid var(--axabee-border); 
+      padding: 12px 16px; 
+      text-align: left; 
+      font-size: 0.95rem;
+    }
+    .stats-table th { 
+      background: var(--axabee-bg);
+      font-weight: 600;
+      color: var(--axabee-text);
+    }
+    .stats-table td {
+      color: var(--axabee-text-light);
+    }
+    .export-btn { 
+      margin-top: 10px; 
+      padding: 10px 24px; 
+      background: var(--axabee-primary); 
+      color: #fff; 
+      border: none; 
+      border-radius: 8px; 
+      font-weight: 600; 
+      font-size: 0.95rem; 
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .export-btn:hover {
+      background: var(--axabee-primary-dark);
+    }
+    
+    /* Formularz - równomierne odstępy */
+    #addForm {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: 1px solid var(--axabee-border);
+    }
+    
+    #addForm > div {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #addForm label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--axabee-text);
+      margin-bottom: 8px;
+    }
+    
+    .input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--axabee-border);
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: var(--axabee-text);
+      background: #fff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-sizing: border-box;
+    }
+    
+    .input:focus {
+      outline: none;
+      border-color: var(--axabee-primary);
+      box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+    }
+    
+    .input::placeholder {
+      color: var(--axabee-text-light);
+    }
+    
+    #addForm button[type="submit"] {
+      padding: 12px 24px;
+      background: var(--axabee-primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+      white-space: nowrap;
+      height: fit-content;
+    }
+    
+    #addForm button[type="submit"]:hover {
+      background: var(--axabee-primary-dark);
+    }
+    
+    @media (max-width: 768px) {
+      #addForm {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      #addForm button[type="submit"] {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">Monitoruj czas odpowiedzi serwisów w czasie rzeczywistym</div>
-    <form id="addForm" style="margin-bottom:25px;display:flex;gap:18px;align-items:center;">
-      <div style="flex:3">
-        <input type="text" id="serviceName" class="input" placeholder="np. Itaka.pl" style="width:100%;padding:9px;border-radius:7px;border:1px solid #dad9db;font-size:1rem;">
+    <div class="logo-header">
+      <div class="logo-container">
+        <img src="https://axabee.com/logo.svg" alt="Axabee" class="logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <div class="logo-text" style="display:none; font-size: 1.5rem; font-weight: 700; color: var(--axabee-primary);">Axabee</div>
       </div>
-      <div style="flex:4">
-        <input type="url" id="serviceUrl" class="input" placeholder="https://itaka.pl" style="width:100%;padding:9px;border-radius:7px;border:1px solid #dad9db;font-size:1rem;">
+      <div>
+        <h1 class="header" style="margin: 0;">Monitoruj czas odpowiedzi serwisów</h1>
+        <p style="margin: 4px 0 0 0; color: var(--axabee-text-light); font-size: 0.9rem;">Monitorowanie w czasie rzeczywistym</p>
       </div>
-      <div style="flex:2">
-        <input type="number" id="serviceThreshold" class="input" value="3000" min="100" step="100" style="width:100%;padding:9px;border-radius:7px;border:1px solid #dad9db;font-size:1rem;">
+    </div>
+    <form id="addForm">
+      <div>
+        <label for="serviceName">Nazwa serwisu</label>
+        <input type="text" id="serviceName" class="input" placeholder="np. Itaka.pl">
       </div>
-      <button type="submit" style="padding:10px 18px;background:#319376;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:bold;cursor:pointer;">Dodaj serwis</button>
+      <div>
+        <label for="serviceUrl">URL</label>
+        <input type="url" id="serviceUrl" class="input" placeholder="https://itaka.pl">
+      </div>
+      <div>
+        <label for="serviceThreshold">Próg (ms)</label>
+        <input type="number" id="serviceThreshold" class="input" value="3000" min="100" step="100">
+      </div>
+      <button type="submit">Dodaj serwis</button>
     </form>
     <div class="service-grid" id="grid"></div>
     <div id="modalBG" class="modal-bg" style="display:none;">
@@ -127,7 +427,7 @@
             <div class="card-sub">${svc.url}</div>
             <div class="bar-chart" data-id="${serviceId}" data-idx="${idx}" title="Kliknij, by zobaczyć szczegóły">${bars}</div>
             <div class="card-sub" style="margin-top:10px">
-              Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#319376':'#d34040'):'#888'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
+              Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#10B981':'#EF4444'):'#64748B'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
               Średnia: <b>${avg ? avg+'ms' : '-'}</b><br>
               Ostatni test: <span>${last ? formatHour(last.timestamp) : '-'}</span><br>
               Próg: ${svc.threshold}ms
@@ -140,9 +440,19 @@
         `
       }).join('');
       // interaktywność wykresów
-      setTimeout(()=>document.querySelectorAll('.bar-chart').forEach(el=>
-        el.onclick=()=>showModal(el.dataset.id, +el.dataset.idx)
-      ),10);
+      setTimeout(()=>{
+        document.querySelectorAll('.bar-chart').forEach(el=>{
+          el.style.cursor = 'pointer';
+          el.onclick = (e) => {
+            e.stopPropagation();
+            const serviceId = el.dataset.id;
+            const idx = +el.dataset.idx;
+            if (serviceId && !isNaN(idx)) {
+              showModal(serviceId, idx);
+            }
+          };
+        });
+      }, 10);
     }
 
     // Test pojedynczego
@@ -294,12 +604,12 @@
       // --- Wykres liniowy ---
       const xs = hist.map((_,i)=> i*(canvas.width/(hist.length-1)));
       const ys = hist.map(h=> canvas.height-Math.max(22, Math.min(canvas.height-34, h.responseTime/10)));
-      ctx.strokeStyle='#25829e'; ctx.lineWidth=3; ctx.beginPath();
+      ctx.strokeStyle='#0066FF'; ctx.lineWidth=3; ctx.beginPath();
       xs.forEach((x,i)=> ctx.lineTo(x,ys[i]));
       ctx.stroke();
 
       // --- Punkty ---
-      ctx.fillStyle='#319376';
+      ctx.fillStyle='#10B981';
       xs.forEach((x,i)=> ctx.beginPath(), ctx.arc(x,ys[i],4,0,7), ctx.fill());
 
       // --- Opisy ----
@@ -342,8 +652,13 @@
     }
 
     renderGrid();
-    // --- Automatyczne testy ---
-    setInterval(() => { services.forEach((_,idx)=>testNow(idx)) }, 1800000 );
+    // --- Automatyczne testy co 30 minut (1800000 ms = 30 min) ---
+    setInterval(() => { 
+      services.forEach((svc, idx) => {
+        const serviceId = svc.id || idx;
+        testNow(serviceId, idx);
+      });
+    }, 1800000); // 30 minut = 1800000 milisekund
   </script>
 </body>
 </html>

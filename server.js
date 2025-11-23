@@ -258,6 +258,93 @@ app.post('/api/test-multiple', async (req, res) => {
   res.json(results);
 });
 
+// Automatyczne testy wszystkich serwisów (dla cron job)
+app.post('/api/test-all', async (req, res) => {
+  try {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    // Pobierz wszystkie serwisy
+    const { data: services, error: servicesError } = await supabase
+      .from('services')
+      .select('id, url');
+
+    if (servicesError) throw servicesError;
+    if (!services || services.length === 0) {
+      return res.json({ message: 'No services to test', tested: 0 });
+    }
+
+    const timeout = req.body?.timeout || 10000;
+    const results = [];
+
+    // Testuj każdy serwis
+    for (const service of services) {
+      try {
+        const testResult = await testService(service.url, timeout);
+        
+        // Zapisz wynik do bazy
+        const { error: dbError } = await supabase
+          .from('service_tests')
+          .insert([{
+            service_id: service.id,
+            success: testResult.success,
+            response_time: testResult.responseTime,
+            status_code: testResult.status,
+            error_message: testResult.error || null,
+            timestamp: testResult.timestamp
+          }]);
+
+        if (dbError) {
+          console.error(`Error saving test for service ${service.id}:`, dbError);
+        } else {
+          // Aktualizuj licznik błędów jeśli test się nie powiódł
+          if (!testResult.success) {
+            const { data: serviceData } = await supabase
+              .from('services')
+              .select('errors')
+              .eq('id', service.id)
+              .single();
+            
+            if (serviceData) {
+              await supabase
+                .from('services')
+                .update({ errors: (serviceData.errors || 0) + 1 })
+                .eq('id', service.id);
+            }
+          }
+        }
+
+        results.push({
+          serviceId: service.id,
+          url: service.url,
+          ...testResult
+        });
+      } catch (error) {
+        console.error(`Error testing service ${service.id}:`, error);
+        results.push({
+          serviceId: service.id,
+          url: service.url,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: `Tested ${results.length} services`,
+      tested: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results: results,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error in test-all endpoint:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 

@@ -77,8 +77,11 @@ Szczegółowe instrukcje znajdziesz w pliku [HEROKU_SETUP.md](./HEROKU_SETUP.md)
 - `POST /api/services` - dodaj nowy serwis
 - `DELETE /api/services/:id` - usuń serwis
 - `POST /api/test` - wykonaj test serwisu i zapisz wynik
+- `POST /api/test-all` - testuj wszystkie serwisy (dla cron job)
 - `GET /api/services/:id/tests` - pobierz historię testów dla serwisu
 - `GET /api/health` - sprawdź status aplikacji
+
+Szczegóły konfiguracji automatycznych testów: [CRON_SETUP.md](./CRON_SETUP.md)
 
 ## Funkcje
 
