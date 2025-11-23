@@ -517,9 +517,18 @@
     // --- Renderowanie listy usług ---
     function renderGrid() {
       grid.innerHTML = services.map((svc, idx) => {
-        const last = svc.history.length ? svc.history[svc.history.length-1] : null;
-        const avg = svc.history.length ? Math.round(svc.history.map(h=>h.responseTime||0).reduce((a,b)=>a+b,0)/svc.history.length) : '';
-        const bars = svc.history.slice(-20).map(h => {
+        // API zwraca historię od najnowszych do najstarszych (ascending: false)
+        // Więc pierwszy element [0] to najnowszy
+        const history = svc.history || [];
+        const last = history.length > 0 ? history[0] : null; // Najnowszy test (pierwszy w tablicy)
+        
+        // Oblicz średnią tylko z udanych testów
+        const successfulTests = history.filter(h => h.success && h.responseTime !== null && h.responseTime !== undefined);
+        const avg = successfulTests.length > 0 
+          ? Math.round(successfulTests.map(h => h.responseTime).reduce((a, b) => a + b, 0) / successfulTests.length)
+          : '';
+        // Dla wykresu bierzemy ostatnie 20 testów (odwrócone, bo API zwraca od najnowszych)
+        const bars = history.slice(0, 20).reverse().map(h => {
           const responseTime = h.responseTime !== null && h.responseTime !== undefined ? h.responseTime + 'ms' : 'error';
           const status = h.success ? 'OK' : 'ERROR';
           let tooltip = `${formatDate(h.timestamp)}\n${responseTime}\n${status}`;
