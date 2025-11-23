@@ -109,8 +109,25 @@
       margin-bottom: 16px; 
       font-size: 0.9rem;
     }
-    .bar-chart { display: flex; align-items: flex-end; height: 90px; margin-bottom: 10px; gap: 3px; cursor: pointer; }
-    .bar { width: 12px; border-radius: 4px 4px 0 0; transition: background .2s; position: relative; pointer-events: none;}
+    .bar-chart { 
+      display: flex; 
+      align-items: flex-end; 
+      height: 90px; 
+      margin-bottom: 10px; 
+      gap: 3px; 
+      cursor: pointer; 
+      position: relative;
+      width: 100%;
+      min-height: 90px;
+    }
+    .bar { 
+      width: 12px; 
+      border-radius: 4px 4px 0 0; 
+      transition: background .2s; 
+      position: relative; 
+      pointer-events: none;
+      flex-shrink: 0;
+    }
     .bar.ok { background: var(--axabee-accent); }
     .bar.err { background: var(--axabee-red-accent); }
     .bar:hover::after {
@@ -463,20 +480,39 @@
           </div>
         `
       }).join('');
-      // interaktywność wykresów
+      // interaktywność wykresów - obsługa kliknięć na całym obszarze wykresu
+      // Używamy event delegation dla lepszej niezawodności
       setTimeout(()=>{
+        // Usuń wszystkie stare handlery przez zastąpienie elementów
         document.querySelectorAll('.bar-chart').forEach(el=>{
-          el.style.cursor = 'pointer';
-          el.onclick = (e) => {
+          const serviceId = el.getAttribute('data-id');
+          const idx = parseInt(el.getAttribute('data-idx'), 10);
+          const barsHTML = el.innerHTML;
+          
+          // Utwórz nowy element
+          const newChart = document.createElement('div');
+          newChart.className = 'bar-chart';
+          newChart.setAttribute('data-id', serviceId);
+          newChart.setAttribute('data-idx', idx);
+          newChart.setAttribute('title', 'Kliknij, by zobaczyć szczegóły');
+          newChart.innerHTML = barsHTML;
+          newChart.style.cursor = 'pointer';
+          
+          // Dodaj handler kliknięcia
+          newChart.addEventListener('click', function(e) {
+            e.preventDefault();
             e.stopPropagation();
-            const serviceId = el.dataset.id;
-            const idx = +el.dataset.idx;
-            if (serviceId && !isNaN(idx)) {
-              showModal(serviceId, idx);
+            const id = this.getAttribute('data-id');
+            const index = parseInt(this.getAttribute('data-idx'), 10);
+            if (id && !isNaN(index) && index >= 0 && index < services.length) {
+              showModal(id, index);
             }
-          };
+          });
+          
+          // Zamień stary element na nowy
+          el.parentNode.replaceChild(newChart, el);
         });
-      }, 10);
+      }, 50);
     }
 
     // Test pojedynczego
@@ -621,7 +657,9 @@
       ctx.clearRect(0,0,canvas.width,canvas.height);
 
       if(hist.length < 2) {
-        ctx.font='16px Arial'; ctx.fillText('Za mało danych.', 32,46);
+        ctx.font='16px Arial'; 
+        ctx.fillStyle='#B3B3B3'; // Jasny szary dla ciemnego motywu
+        ctx.fillText('Za mało danych.', 32,46);
         return;
       }
 
@@ -638,7 +676,7 @@
 
       // --- Opisy ----
       ctx.font='10px Arial';
-      ctx.fillStyle='#555';
+      ctx.fillStyle='#B3B3B3'; // Jasny szary dla ciemnego motywu
       hist.forEach((h,i)=> {
         if(i%Math.ceil(hist.length/7)==0) {
           ctx.fillText(formatHour(h.timestamp), xs[i], canvas.height-6);
@@ -661,8 +699,28 @@
       `;
     }
 
-    function exportCSV(svc, fromVal, toVal) {
-      const hist = filterHistory(svc, fromVal, toVal);
+    async function exportCSV(svc, fromVal, toVal) {
+      // Jeśli mamy filtry, pobierz dane z API z filtrami
+      let hist = svc.history;
+      
+      if (fromVal || toVal) {
+        try {
+          const serviceId = svc.id;
+          let url = `/api/services/${serviceId}/tests?limit=1000`;
+          if (fromVal) url += `&from=${fromVal}`;
+          if (toVal) url += `&to=${toVal}`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const filteredHistory = await res.json();
+            hist = filteredHistory;
+          }
+        } catch(e) {
+          console.error('Error loading filtered history for export:', e);
+          // Fallback do lokalnego filtrowania
+          hist = filterHistory(svc, fromVal, toVal);
+        }
+      }
+      
       let csv = 'timestamp,response_time,status\n';
       hist.forEach(h=> {
         csv += `${h.timestamp},${h.responseTime||''},${h.success?'OK':'ERROR'}\n`;
