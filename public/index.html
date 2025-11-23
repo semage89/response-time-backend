@@ -127,7 +127,8 @@
       margin-bottom: 10px; 
       gap: 3px; 
       position: relative;
-      width: 100%;
+      flex: 1;
+      min-width: 0; /* Ważne dla flexbox - pozwala na kurczenie */
       min-height: 90px;
       overflow: visible; /* Ważne - pozwala tooltipom wyjść poza kontener */
     }
@@ -137,6 +138,7 @@
       align-items: flex-start;
       gap: 12px;
       position: relative;
+      width: 100%;
       overflow: visible; /* Ważne - pozwala tooltipom wyjść poza kontener */
     }
     
@@ -301,7 +303,36 @@
       background: var(--axabee-bg);
       color: var(--axabee-text);
     }
-    .detail-chart { width: 100%; height: 220px; margin-bottom: 14px; }
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      margin-bottom: 14px;
+    }
+    .detail-chart { width: 100%; height: 220px; }
+    .chart-tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.95);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      white-space: pre-line;
+      z-index: 10000;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      line-height: 1.5;
+      min-width: 180px;
+      text-align: left;
+    }
+    .chart-tooltip::before {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: rgba(0, 0, 0, 0.95);
+    }
     .date-filter { 
       display: flex; 
       gap: 12px; 
@@ -488,7 +519,10 @@
           <input type="date" id="toDate">
           <button class="export-btn" id="exportBtn">Eksport CSV</button>
         </div>
-        <canvas id="detailChart" class="detail-chart"></canvas>
+        <div class="chart-wrapper" style="position: relative;">
+          <canvas id="detailChart" class="detail-chart"></canvas>
+          <div id="chartTooltip" class="chart-tooltip" style="display: none;"></div>
+        </div>
         <table class="stats-table" id="statsTable"></table>
       </div>
     </div>
@@ -946,6 +980,9 @@
       return { min: globalMin, max: globalMax };
     }
 
+    // Zmienna globalna do przechowywania punktów wykresu dla tooltipów
+    let modalChartPoints = [];
+    
     function drawModalChart(svc, fromVal, toVal) {
       const hist = filterHistory(svc, fromVal, toVal);
       // ---- Chart rysowanie ----
@@ -953,6 +990,9 @@
       const ctx = canvas.getContext('2d');
       canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
       ctx.clearRect(0,0,canvas.width,canvas.height);
+      
+      // Wyczyść poprzednie punkty
+      modalChartPoints = [];
 
       if(hist.length < 2) {
         ctx.font='16px Arial'; 
@@ -1018,6 +1058,8 @@
         ctx.beginPath();
         ctx.arc(x,ys[i],4,0,7);
         ctx.fill();
+        // Zapisz współrzędne punktów dla tooltipów
+        modalChartPoints.push({ x, y: ys[i], data: hist[i] });
       });
 
       // --- Opisy czasu (na dole) ---
@@ -1045,6 +1087,87 @@
         <tr><th>Mediana</th><td>${med}ms</td></tr>
         <tr><th>Odch. stand.</th><td>${std}ms</td></tr>
       `;
+      
+      // --- Tooltipy na punktach ---
+      const tooltip = document.getElementById('chartTooltip');
+      const tooltipRadius = 8; // Promień wykrywania najechania
+      
+      // Usuń poprzednie event listenery (jeśli istnieją)
+      const oldHandler = canvas._tooltipHandler;
+      if (oldHandler) {
+        canvas.removeEventListener('mousemove', oldHandler);
+        canvas.removeEventListener('mouseleave', canvas._tooltipLeaveHandler);
+      }
+      
+      // Nowy handler dla tooltipów
+      const tooltipHandler = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Sprawdź, czy kursor jest nad jakimś punktem
+        let hoveredPoint = null;
+        for (const point of modalChartPoints) {
+          const dx = x - point.x;
+          const dy = y - point.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance <= tooltipRadius) {
+            hoveredPoint = point;
+            break;
+          }
+        }
+        
+        if (hoveredPoint) {
+          const data = hoveredPoint.data;
+          const responseTime = data.responseTime !== null && data.responseTime !== undefined 
+            ? data.responseTime + 'ms' 
+            : 'error';
+          const status = data.success ? 'OK' : 'ERROR';
+          const timestamp = formatDate(data.timestamp);
+          
+          tooltip.innerHTML = `${timestamp}\n${responseTime}\n${status}`;
+          tooltip.style.display = 'block';
+          
+          // Pozycjonuj tooltip nad punktem
+          const tooltipX = hoveredPoint.x;
+          const tooltipY = hoveredPoint.y - 20;
+          tooltip.style.left = tooltipX + 'px';
+          tooltip.style.top = tooltipY + 'px';
+          tooltip.style.transform = 'translateX(-50%) translateY(-100%)';
+          
+          // Upewnij się, że tooltip nie wychodzi poza canvas
+          setTimeout(() => {
+            const tooltipRect = tooltip.getBoundingClientRect();
+            const canvasRect = canvas.getBoundingClientRect();
+            if (tooltipRect.left < canvasRect.left) {
+              tooltip.style.left = '10px';
+              tooltip.style.transform = 'translateY(-100%)';
+            }
+            if (tooltipRect.right > canvasRect.right) {
+              tooltip.style.left = (canvas.width - tooltipRect.width - 10) + 'px';
+              tooltip.style.transform = 'translateY(-100%)';
+            }
+            if (tooltipRect.top < canvasRect.top) {
+              tooltip.style.top = (hoveredPoint.y + 20) + 'px';
+              tooltip.style.transform = 'translateX(-50%) translateY(0)';
+            }
+          }, 0);
+        } else {
+          tooltip.style.display = 'none';
+        }
+      };
+      
+      const tooltipLeaveHandler = () => {
+        tooltip.style.display = 'none';
+      };
+      
+      // Zapisz referencje do handlerów
+      canvas._tooltipHandler = tooltipHandler;
+      canvas._tooltipLeaveHandler = tooltipLeaveHandler;
+      
+      // Dodaj event listenery
+      canvas.addEventListener('mousemove', tooltipHandler);
+      canvas.addEventListener('mouseleave', tooltipLeaveHandler);
     }
 
     async function exportCSV(svc, fromVal, toVal) {
