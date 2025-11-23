@@ -125,18 +125,43 @@
       border-radius: 4px 4px 0 0; 
       transition: background .2s; 
       position: relative; 
-      pointer-events: none;
+      pointer-events: auto; /* Zmienione z none na auto, aby tooltip działał */
       flex-shrink: 0;
+      cursor: default; /* Kursor domyślny na słupkach, pointer na całym wykresie */
     }
     .bar.ok { background: var(--axabee-accent); }
     .bar.err { background: var(--axabee-red-accent); }
+    .bar:hover {
+      opacity: 0.8;
+    }
     .bar:hover::after {
       content: attr(data-tooltip);
       position: absolute;
-      top: -30px;
-      left: -20px;
-      background: #222; color: #fff; padding: 6px 12px; font-size: .92rem; border-radius: 5px;
-      white-space: nowrap; z-index: 2;
+      top: -45px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9); 
+      color: #fff; 
+      padding: 8px 12px; 
+      font-size: 0.85rem; 
+      border-radius: 6px;
+      white-space: pre-line; 
+      z-index: 1000;
+      pointer-events: none;
+      min-width: 150px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .bar:hover::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: rgba(0, 0, 0, 0.9);
+      z-index: 1001;
+      pointer-events: none;
     }
     .flex-btn { display: flex; align-items: center; gap: 0; }
     .test-btn { 
@@ -461,9 +486,9 @@
       if (e.target.classList && e.target.classList.contains('bar-chart')) {
         chartEl = e.target;
       }
-      // Metoda 2: Sprawdź czy target jest .bar (dziecko .bar-chart)
+      // Metoda 2: Jeśli kliknięto w .bar, zignoruj (są tylko dla tooltipów)
       else if (e.target.classList && e.target.classList.contains('bar')) {
-        chartEl = e.target.parentElement;
+        return; // Nie otwieraj modala przy kliknięciu w słupek (tylko tooltip)
       }
       // Metoda 3: Użyj closest (może nie działać z pointer-events: none)
       else {
@@ -517,8 +542,12 @@
         const last = svc.history.length ? svc.history[svc.history.length-1] : null;
         const avg = svc.history.length ? Math.round(svc.history.map(h=>h.responseTime||0).reduce((a,b)=>a+b,0)/svc.history.length) : '';
         const bars = svc.history.slice(-20).map(h => {
-          let tooltip = `${formatDate(h.timestamp)}\n${h.responseTime ?? '-'}ms`;
-          return `<div class="bar ${h.success ? 'ok':'err'}" data-tooltip="${tooltip}" style="height:${Math.max(6, Math.min(80, (h.responseTime||0)/40))}px;"></div>`
+          const responseTime = h.responseTime !== null && h.responseTime !== undefined ? h.responseTime + 'ms' : 'error';
+          const status = h.success ? 'OK' : 'ERROR';
+          let tooltip = `${formatDate(h.timestamp)}\n${responseTime}\n${status}`;
+          // Escapuj cudzysłowy dla bezpieczeństwa
+          const safeTooltip = tooltip.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          return `<div class="bar ${h.success ? 'ok':'err'}" data-tooltip="${safeTooltip}" style="height:${Math.max(6, Math.min(80, (h.responseTime||0)/40))}px;"></div>`
         }).join('');
         const serviceId = svc.id || idx;
         return `
@@ -801,6 +830,17 @@
     }
 
     renderGrid();
+    
+    // --- Automatyczne odświeżanie danych w tle ---
+    setInterval(async () => {
+      try {
+        await loadServices();
+        console.log('Data refreshed at', new Date().toLocaleTimeString());
+      } catch(e) {
+        console.error('Error refreshing data:', e);
+      }
+    }, 60000); // Odświeżaj co 60 sekund (1 minuta)
+    
     // --- Automatyczne testy co 30 minut (1800000 ms = 30 min) ---
     setInterval(() => { 
       services.forEach((svc, idx) => {
