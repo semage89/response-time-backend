@@ -115,10 +115,42 @@
       height: 90px; 
       margin-bottom: 10px; 
       gap: 3px; 
-      cursor: pointer; 
       position: relative;
       width: 100%;
       min-height: 90px;
+      overflow: visible; /* Ważne - pozwala tooltipom wyjść poza kontener */
+    }
+    
+    .chart-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      position: relative;
+      overflow: visible; /* Ważne - pozwala tooltipom wyjść poza kontener */
+    }
+    
+    .chart-info-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--axabee-text);
+      color: var(--axabee-bg);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      font-weight: bold;
+      font-style: italic;
+      transition: opacity 0.2s, transform 0.2s;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .chart-info-btn:hover {
+      opacity: 0.8;
+      transform: scale(1.1);
     }
     .bar { 
       width: 12px; 
@@ -134,33 +166,38 @@
     .bar:hover {
       opacity: 0.8;
     }
+    .bar {
+      position: relative;
+    }
     .bar:hover::after {
       content: attr(data-tooltip);
       position: absolute;
-      top: -45px;
+      bottom: calc(100% + 10px);
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.9); 
+      background: rgba(0, 0, 0, 0.95); 
       color: #fff; 
       padding: 8px 12px; 
       font-size: 0.85rem; 
       border-radius: 6px;
       white-space: pre-line; 
-      z-index: 1000;
+      z-index: 999999; /* Bardzo wysoki z-index, aby był zawsze na wierzchu */
       pointer-events: none;
       min-width: 150px;
+      max-width: 200px;
       text-align: center;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      line-height: 1.4;
     }
     .bar:hover::before {
       content: '';
       position: absolute;
-      top: -8px;
+      bottom: calc(100% + 4px);
       left: 50%;
       transform: translateX(-50%);
       border: 6px solid transparent;
-      border-top-color: rgba(0, 0, 0, 0.9);
-      z-index: 1001;
+      border-top-color: rgba(0, 0, 0, 0.95);
+      z-index: 1000000; /* Wyższy niż tooltip */
       pointer-events: none;
     }
     .flex-btn { display: flex; align-items: center; gap: 0; }
@@ -476,65 +513,6 @@
 
     // Inicjalizacja przy starcie
     loadServices();
-    
-    // Event delegation na poziomie grid - działa zawsze, nawet dla pustych wykresów
-    // Używamy capture phase i sprawdzamy wszystkie możliwe przypadki
-    grid.addEventListener('click', function(e) {
-      let chartEl = null;
-      
-      // Metoda 1: Sprawdź czy target jest .bar-chart
-      if (e.target.classList && e.target.classList.contains('bar-chart')) {
-        chartEl = e.target;
-      }
-      // Metoda 2: Jeśli kliknięto w .bar, zignoruj (są tylko dla tooltipów)
-      else if (e.target.classList && e.target.classList.contains('bar')) {
-        return; // Nie otwieraj modala przy kliknięciu w słupek (tylko tooltip)
-      }
-      // Metoda 3: Użyj closest (może nie działać z pointer-events: none)
-      else {
-        chartEl = e.target.closest('.bar-chart');
-      }
-      
-      // Metoda 4: Jeśli nadal nie znaleziono, szukaj ręcznie w górę drzewa
-      if (!chartEl || !chartEl.classList || !chartEl.classList.contains('bar-chart')) {
-        let parent = e.target.parentElement;
-        let depth = 0;
-        while (parent && depth < 10) {
-          if (parent.classList && parent.classList.contains('bar-chart')) {
-            chartEl = parent;
-            break;
-          }
-          parent = parent.parentElement;
-          depth++;
-        }
-      }
-      
-      if (!chartEl || !chartEl.classList || !chartEl.classList.contains('bar-chart')) {
-        return; // Kliknięto poza wykresem
-      }
-      
-      e.preventDefault();
-      e.stopPropagation();
-      
-      const serviceId = chartEl.getAttribute('data-id');
-      const idxStr = chartEl.getAttribute('data-idx');
-      const idx = parseInt(idxStr, 10);
-      
-      console.log('Grid click delegation:', { 
-        serviceId, 
-        idx, 
-        servicesLength: services.length,
-        targetClass: e.target.className,
-        targetTag: e.target.tagName,
-        chartFound: !!chartEl
-      });
-      
-      if (serviceId && !isNaN(idx) && idx >= 0 && idx < services.length) {
-        showModal(serviceId, idx);
-      } else {
-        console.error('Invalid chart click:', { serviceId, idx, servicesLength: services.length });
-      }
-    }, true); // Capture phase dla pewności
 
     // --- Renderowanie listy usług ---
     function renderGrid() {
@@ -554,7 +532,10 @@
           <div class="service-card">
             <div class="card-header">${svc.name}</div>
             <div class="card-sub">${svc.url}</div>
-            <div class="bar-chart" data-id="${serviceId}" data-idx="${idx}" title="Kliknij, by zobaczyć szczegóły">${bars}</div>
+            <div class="chart-container">
+              <div class="bar-chart">${bars}</div>
+              <button class="chart-info-btn" onclick="showModal('${serviceId}', ${idx})" title="Zobacz szczegóły">i</button>
+            </div>
             <div class="card-sub" style="margin-top:10px">
               Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#10B981':'#FF0000'):'#808080'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
               Średnia: <b>${avg ? avg+'ms' : '-'}</b><br>
