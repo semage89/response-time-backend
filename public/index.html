@@ -90,12 +90,23 @@
       flex-direction: column;
       border: 1px solid var(--axabee-border);
       transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+      cursor: move; /* Wskaźnik dla drag and drop */
     }
     
     .service-card:hover {
       box-shadow: 0 8px 12px rgba(0,0,0,0.4), 0 4px 6px rgba(0,0,0,0.3);
       transform: translateY(-2px);
       border-color: var(--axabee-border-light);
+    }
+    
+    .service-card.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    
+    .service-card.drag-over {
+      border-color: var(--axabee-primary);
+      box-shadow: 0 0 0 2px var(--axabee-primary);
     }
     
     .card-header { 
@@ -215,6 +226,14 @@
       transition: background .2s, opacity .2s;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+    }
+    
+    .service-card button {
+      cursor: pointer;
+    }
+    
+    .service-card.dragging button {
+      pointer-events: none;
     }
     .test-btn:hover { 
       background: var(--axabee-primary-dark); 
@@ -488,6 +507,7 @@
         const res = await fetch('/api/services');
         if (res.ok) {
           services = await res.json();
+          loadServiceOrder(); // Załaduj zapisaną kolejność
           renderGrid();
         } else {
           console.error('Failed to load services');
@@ -496,6 +516,7 @@
           const fallback = JSON.parse(localStorage.getItem(LS_KEY)) || [];
           if (fallback.length > 0) {
             services = fallback;
+            loadServiceOrder(); // Załaduj zapisaną kolejność
             renderGrid();
           }
         }
@@ -506,6 +527,7 @@
         const fallback = JSON.parse(localStorage.getItem(LS_KEY)) || [];
         if (fallback.length > 0) {
           services = fallback;
+          loadServiceOrder(); // Załaduj zapisaną kolejność
           renderGrid();
         }
       }
@@ -538,7 +560,7 @@
         }).join('');
         const serviceId = svc.id || idx;
         return `
-          <div class="service-card">
+          <div class="service-card" draggable="true" data-service-id="${serviceId}" data-service-idx="${idx}">
             <div class="card-header">${svc.name}</div>
             <div class="card-sub">${svc.url}</div>
             <div class="chart-container">
@@ -587,6 +609,154 @@
           newEl.addEventListener('mousedown', handleChartClick, false);
         });
       }, 50);
+      
+      // Inicjalizuj drag and drop
+      initDragAndDrop();
+      
+      // Zapobiegaj uruchamianiu drag and drop przy kliknięciu w przyciski
+      document.querySelectorAll('.service-card button').forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+          e.stopPropagation();
+        });
+        btn.addEventListener('dragstart', (e) => {
+          e.stopPropagation();
+        });
+      });
+    }
+    
+    // Funkcje drag and drop
+    function initDragAndDrop() {
+      const cards = document.querySelectorAll('.service-card');
+      let draggedElement = null;
+      let draggedIndex = null;
+      
+      cards.forEach((card, index) => {
+        card.addEventListener('dragstart', (e) => {
+          draggedElement = card;
+          draggedIndex = index;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', ''); // Wymagane dla Firefox
+        });
+        
+        card.addEventListener('dragend', (e) => {
+          card.classList.remove('dragging');
+          document.querySelectorAll('.service-card').forEach(c => c.classList.remove('drag-over'));
+          draggedElement = null;
+          draggedIndex = null;
+        });
+        
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          
+          if (draggedElement && draggedElement !== card) {
+            const afterElement = getDragAfterElement(grid, e.clientY);
+            const dragging = document.querySelector('.dragging');
+            
+            if (afterElement == null) {
+              grid.appendChild(dragging);
+            } else {
+              grid.insertBefore(dragging, afterElement);
+            }
+          }
+          
+          card.classList.add('drag-over');
+        });
+        
+        card.addEventListener('dragleave', (e) => {
+          // Usuń klasę tylko jeśli opuszczamy kartę (nie przechodzimy do dziecka)
+          if (!card.contains(e.relatedTarget)) {
+            card.classList.remove('drag-over');
+          }
+        });
+        
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          
+          if (draggedElement && draggedElement !== card) {
+            // Pobierz nową kolejność z DOM
+            const newOrder = Array.from(grid.children).map((el) => {
+              const serviceId = el.getAttribute('data-service-id');
+              return serviceId;
+            });
+            
+            // Zmień kolejność w tablicy services zgodnie z nową kolejnością w DOM
+            const reorderedServices = newOrder.map(serviceId => {
+              return services.find(s => s.id === serviceId || (s.id || '').toString() === serviceId);
+            }).filter(s => s !== undefined);
+            
+            // Dodaj serwisy, które nie zostały znalezione (na wszelki wypadek)
+            services.forEach(svc => {
+              const svcId = svc.id || '';
+              if (!reorderedServices.find(s => (s.id || '').toString() === svcId.toString())) {
+                reorderedServices.push(svc);
+              }
+            });
+            
+            services = reorderedServices;
+            
+            // Zapisz kolejność w localStorage
+            saveServiceOrder();
+            
+            // Przerenderuj grid z nową kolejnością
+            renderGrid();
+          }
+        });
+      });
+    }
+    
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.service-card:not(.dragging)')];
+      
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+    
+    function saveServiceOrder() {
+      const order = services.map((svc, idx) => ({
+        id: svc.id,
+        idx: idx
+      }));
+      localStorage.setItem('serviceOrder', JSON.stringify(order));
+    }
+    
+    function loadServiceOrder() {
+      try {
+        const savedOrder = localStorage.getItem('serviceOrder');
+        if (savedOrder) {
+          const order = JSON.parse(savedOrder);
+          // Sortuj services zgodnie z zapisaną kolejnością
+          const orderedServices = [];
+          const serviceMap = new Map(services.map(s => [s.id, s]));
+          
+          order.forEach(item => {
+            if (serviceMap.has(item.id)) {
+              orderedServices.push(serviceMap.get(item.id));
+            }
+          });
+          
+          // Dodaj serwisy, które nie były w zapisanej kolejności (nowe serwisy)
+          services.forEach(svc => {
+            if (!order.find(o => o.id === svc.id)) {
+              orderedServices.push(svc);
+            }
+          });
+          
+          services = orderedServices;
+        }
+      } catch (e) {
+        console.error('Error loading service order:', e);
+      }
     }
 
     // Test pojedynczego
@@ -740,6 +910,42 @@
       return arr;
     }
 
+    // Funkcja do obliczania globalnej skali (min/max) z wszystkich serwisów
+    function getGlobalScale() {
+      let globalMin = Infinity;
+      let globalMax = -Infinity;
+      
+      services.forEach(svc => {
+        const hist = svc.history || [];
+        const vals = hist.filter(h => h.responseTime !== null && h.responseTime !== undefined).map(h => h.responseTime);
+        if (vals.length > 0) {
+          const min = Math.min(...vals);
+          const max = Math.max(...vals);
+          if (min < globalMin) globalMin = min;
+          if (max > globalMax) globalMax = max;
+        }
+      });
+      
+      // Jeśli nie ma danych, użyj domyślnej skali
+      if (globalMin === Infinity) {
+        globalMin = 0;
+        globalMax = 1000;
+      }
+      
+      // Zaokrąglij do ładnych wartości
+      const padding = (globalMax - globalMin) * 0.1; // 10% padding
+      globalMin = Math.max(0, Math.floor(globalMin - padding));
+      globalMax = Math.ceil(globalMax + padding);
+      
+      // Zaokrąglij do ładnych wartości (np. 100, 500, 1000)
+      if (globalMax > 0) {
+        const magnitude = Math.pow(10, Math.floor(Math.log10(globalMax)));
+        globalMax = Math.ceil(globalMax / magnitude) * magnitude;
+      }
+      
+      return { min: globalMin, max: globalMax };
+    }
+
     function drawModalChart(svc, fromVal, toVal) {
       const hist = filterHistory(svc, fromVal, toVal);
       // ---- Chart rysowanie ----
@@ -755,23 +961,73 @@
         return;
       }
 
+      // Oblicz globalną skalę
+      const globalScale = getGlobalScale();
+      const scaleMin = globalScale.min;
+      const scaleMax = globalScale.max;
+      const scaleRange = scaleMax - scaleMin;
+      
+      // Marginesy dla osi
+      const leftMargin = 50; // Miejsce na skalę Y
+      const rightMargin = 10;
+      const topMargin = 20;
+      const bottomMargin = 30; // Miejsce na etykiety czasu
+      const chartWidth = canvas.width - leftMargin - rightMargin;
+      const chartHeight = canvas.height - topMargin - bottomMargin;
+
+      // --- Rysuj skalę osi Y (po lewej stronie) ---
+      ctx.font='11px Arial';
+      ctx.fillStyle='#B3B3B3';
+      ctx.textAlign='right';
+      ctx.textBaseline='middle';
+      
+      const ySteps = 5; // Liczba poziomów na skali
+      for (let i = 0; i <= ySteps; i++) {
+        const value = scaleMax - (scaleRange * i / ySteps);
+        const y = topMargin + (chartHeight * i / ySteps);
+        
+        // Rysuj linię pomocniczą
+        ctx.strokeStyle='rgba(179, 179, 179, 0.2)';
+        ctx.lineWidth=1;
+        ctx.beginPath();
+        ctx.moveTo(leftMargin, y);
+        ctx.lineTo(leftMargin + chartWidth, y);
+        ctx.stroke();
+        
+        // Rysuj etykietę wartości
+        ctx.fillText(Math.round(value) + 'ms', leftMargin - 10, y);
+      }
+
       // --- Wykres liniowy ---
-      const xs = hist.map((_,i)=> i*(canvas.width/(hist.length-1)));
-      const ys = hist.map(h=> canvas.height-Math.max(22, Math.min(canvas.height-34, h.responseTime/10)));
-      ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3; ctx.beginPath();
+      const xs = hist.map((_,i)=> leftMargin + i*(chartWidth/(hist.length-1)));
+      const ys = hist.map(h=> {
+        const responseTime = h.responseTime || 0;
+        const normalizedValue = (responseTime - scaleMin) / scaleRange;
+        return topMargin + chartHeight - (normalizedValue * chartHeight);
+      });
+      
+      ctx.strokeStyle='#FFFFFF'; 
+      ctx.lineWidth=3; 
+      ctx.beginPath();
       xs.forEach((x,i)=> ctx.lineTo(x,ys[i]));
       ctx.stroke();
 
       // --- Punkty ---
       ctx.fillStyle='#10B981';
-      xs.forEach((x,i)=> ctx.beginPath(), ctx.arc(x,ys[i],4,0,7), ctx.fill());
+      xs.forEach((x,i)=> {
+        ctx.beginPath();
+        ctx.arc(x,ys[i],4,0,7);
+        ctx.fill();
+      });
 
-      // --- Opisy ----
+      // --- Opisy czasu (na dole) ---
       ctx.font='10px Arial';
-      ctx.fillStyle='#B3B3B3'; // Jasny szary dla ciemnego motywu
+      ctx.fillStyle='#B3B3B3';
+      ctx.textAlign='center';
+      ctx.textBaseline='top';
       hist.forEach((h,i)=> {
         if(i%Math.ceil(hist.length/7)==0) {
-          ctx.fillText(formatHour(h.timestamp), xs[i], canvas.height-6);
+          ctx.fillText(formatHour(h.timestamp), xs[i], canvas.height - bottomMargin + 10);
         }
       });
 
