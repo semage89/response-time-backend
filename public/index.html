@@ -73,21 +73,43 @@
   </div>
   <script>
     // --- Prosty Store ---
-    const LS_KEY = 'services_v2';
     const HISTORY_LIMIT = 50;
     const grid = document.getElementById('grid');
     const modalBG = document.getElementById('modalBG');
     // --- Inicjalizacja serwisów ---
-    let services = JSON.parse(localStorage.getItem(LS_KEY)) || [
-      {name:'Itaka.pl', url:'https://itaka.pl', threshold:3000, history:[], errors:0},
-      {name:'Itaka.lt', url:'https://itaka.lt', threshold:3000, history:[], errors:0},
-      {name:'Cedok.cz', url:'https://cedok.cz', threshold:3000, history:[], errors:0},
-      {name:'Cedok.sk', url:'https://cedok.sk', threshold:3000, history:[], errors:0},
-      {name:'Itaka.hu', url:'https://itaka.hu', threshold:3000, history:[], errors:0},
-      {name:'Selvatour.pl', url:'https://selvatour.pl', threshold:3000, history:[], errors:0},
-      {name:'um24.pl', url:'https://um24.pl', threshold:3000, history:[], errors:0},
-      {name:'olakala.travel', url:'https://olakala.travel', threshold:3000, history:[], errors:0}
-    ];
+    let services = [];
+
+    // Ładowanie serwisów z API
+    async function loadServices() {
+      try {
+        const res = await fetch('/api/services');
+        if (res.ok) {
+          services = await res.json();
+          renderGrid();
+        } else {
+          console.error('Failed to load services');
+          // Fallback do localStorage jeśli API nie działa
+          const LS_KEY = 'services_v2';
+          const fallback = JSON.parse(localStorage.getItem(LS_KEY)) || [];
+          if (fallback.length > 0) {
+            services = fallback;
+            renderGrid();
+          }
+        }
+      } catch (e) {
+        console.error('Error loading services:', e);
+        // Fallback do localStorage
+        const LS_KEY = 'services_v2';
+        const fallback = JSON.parse(localStorage.getItem(LS_KEY)) || [];
+        if (fallback.length > 0) {
+          services = fallback;
+          renderGrid();
+        }
+      }
+    }
+
+    // Inicjalizacja przy starcie
+    loadServices();
 
     // --- Renderowanie listy usług ---
     function renderGrid() {
@@ -96,13 +118,14 @@
         const avg = svc.history.length ? Math.round(svc.history.map(h=>h.responseTime||0).reduce((a,b)=>a+b,0)/svc.history.length) : '';
         const bars = svc.history.slice(-20).map(h => {
           let tooltip = `${formatDate(h.timestamp)}\n${h.responseTime ?? '-'}ms`;
-          return `<div class="bar ${h.success ? 'ok':'err'}" data-tooltip="${tooltip}" style="height:${Math.max(6, Math.min(80, h.responseTime/40))}px;"></div>`
+          return `<div class="bar ${h.success ? 'ok':'err'}" data-tooltip="${tooltip}" style="height:${Math.max(6, Math.min(80, (h.responseTime||0)/40))}px;"></div>`
         }).join('');
+        const serviceId = svc.id || idx;
         return `
           <div class="service-card">
             <div class="card-header">${svc.name}</div>
             <div class="card-sub">${svc.url}</div>
-            <div class="bar-chart" data-idx="${idx}" title="Kliknij, by zobaczyć szczegóły">${bars}</div>
+            <div class="bar-chart" data-id="${serviceId}" data-idx="${idx}" title="Kliknij, by zobaczyć szczegóły">${bars}</div>
             <div class="card-sub" style="margin-top:10px">
               Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#319376':'#d34040'):'#888'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
               Średnia: <b>${avg ? avg+'ms' : '-'}</b><br>
@@ -110,58 +133,86 @@
               Próg: ${svc.threshold}ms
             </div>
             <div class="flex-btn" style="margin-top:14px;">
-              <button class="test-btn" onclick="testNow(${idx})">Test teraz</button>
-              <button class="delete-btn" onclick="deleteService(${idx})">✗</button>
+              <button class="test-btn" onclick="testNow('${serviceId}', ${idx})">Test teraz</button>
+              <button class="delete-btn" onclick="deleteService('${serviceId}', ${idx})">✗</button>
             </div>
           </div>
         `
       }).join('');
       // interaktywność wykresów
       setTimeout(()=>document.querySelectorAll('.bar-chart').forEach(el=>
-        el.onclick=()=>showModal(+el.dataset.idx)
+        el.onclick=()=>showModal(el.dataset.id, +el.dataset.idx)
       ),10);
     }
 
     // Test pojedynczego
-    async function testNow(idx) {
+    async function testNow(serviceId, idx) {
       const svc = services[idx];
       try {
         const res = await fetch('/api/test', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({url:svc.url, timeout:10000})
+          body:JSON.stringify({url:svc.url, timeout:10000, serviceId: serviceId})
         });
         const result = await res.json();
-        services[idx].history.push(result);
+        services[idx].history.unshift(result); // Dodaj na początku
         if(!result.success) services[idx].errors+=1;
-        if(services[idx].history.length > HISTORY_LIMIT) services[idx].history = services[idx].history.slice(-HISTORY_LIMIT);
-        localStorage.setItem(LS_KEY, JSON.stringify(services));
+        if(services[idx].history.length > HISTORY_LIMIT) services[idx].history = services[idx].history.slice(0, HISTORY_LIMIT);
         renderGrid();
-      } catch(e) { alert('Problem z testem!'); }
+      } catch(e) { 
+        console.error('Error testing service:', e);
+        alert('Problem z testem!'); 
+      }
     }
 
     // Usuwanie serwisu
-    function deleteService(idx) {
+    async function deleteService(serviceId, idx) {
       if(confirm('Usunąć ten serwis?')) {
-        services.splice(idx,1);
-        localStorage.setItem(LS_KEY, JSON.stringify(services));
-        renderGrid();
+        try {
+          const res = await fetch(`/api/services/${serviceId}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            services.splice(idx, 1);
+            renderGrid();
+          } else {
+            alert('Błąd podczas usuwania serwisu');
+          }
+        } catch(e) {
+          console.error('Error deleting service:', e);
+          alert('Błąd podczas usuwania serwisu');
+        }
       }
     }
 
     // Dodaj nowy
-    document.getElementById('addForm').onsubmit = function(e){
+    document.getElementById('addForm').onsubmit = async function(e){
       e.preventDefault();
       const name = document.getElementById('serviceName').value.trim();
       const url = document.getElementById('serviceUrl').value.trim();
       const t = +document.getElementById('serviceThreshold').value || 3000;
       if(!name || !url) return;
-      services.push({name, url, threshold:t, history:[], errors:0});
-      localStorage.setItem(LS_KEY, JSON.stringify(services));
-      renderGrid();
-      document.getElementById('serviceName').value='';
-      document.getElementById('serviceUrl').value='';
-      document.getElementById('serviceThreshold').value='3000';
+      
+      try {
+        const res = await fetch('/api/services', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({name, url, threshold: t})
+        });
+        if (res.ok) {
+          const newService = await res.json();
+          services.push(newService);
+          renderGrid();
+          document.getElementById('serviceName').value='';
+          document.getElementById('serviceUrl').value='';
+          document.getElementById('serviceThreshold').value='3000';
+        } else {
+          alert('Błąd podczas dodawania serwisu');
+        }
+      } catch(e) {
+        console.error('Error adding service:', e);
+        alert('Błąd podczas dodawania serwisu');
+      }
     }
 
     // --- Formatowanie godzin/dat ---
@@ -175,16 +226,48 @@
     }
 
     // --- MODAL: szczegóły ---
-    function showModal(idx) {
+    async function showModal(serviceId, idx) {
       const svc = services[idx];
       document.getElementById('modalTitle').innerText = svc.name+' - analiza szczegółowa';
       document.getElementById('fromDate').value = '';
       document.getElementById('toDate').value = '';
+      
+      // Pobierz pełną historię z API
+      try {
+        const res = await fetch(`/api/services/${serviceId}/tests?limit=1000`);
+        if (res.ok) {
+          const fullHistory = await res.json();
+          svc.history = fullHistory.reverse(); // Odwróć, aby najstarsze były pierwsze
+        }
+      } catch(e) {
+        console.error('Error loading test history:', e);
+      }
+      
       drawModalChart(svc, null, null);
       modalBG.style.display = '';
       document.getElementById('closeModal').onclick = ()=> modalBG.style.display = 'none';
-      document.getElementById('fromDate').onchange = () => drawModalChart(svc, document.getElementById('fromDate').value, document.getElementById('toDate').value);
-      document.getElementById('toDate').onchange = () => drawModalChart(svc, document.getElementById('fromDate').value, document.getElementById('toDate').value);
+      
+      const updateChart = async () => {
+        const from = document.getElementById('fromDate').value;
+        const to = document.getElementById('toDate').value;
+        // Pobierz historię z filtrami
+        try {
+          let url = `/api/services/${serviceId}/tests?limit=1000`;
+          if (from) url += `&from=${from}`;
+          if (to) url += `&to=${to}`;
+          const res = await fetch(url);
+          if (res.ok) {
+            const filteredHistory = await res.json();
+            svc.history = filteredHistory.reverse();
+          }
+        } catch(e) {
+          console.error('Error loading filtered history:', e);
+        }
+        drawModalChart(svc, from, to);
+      };
+      
+      document.getElementById('fromDate').onchange = updateChart;
+      document.getElementById('toDate').onchange = updateChart;
       document.getElementById('exportBtn').onclick = () => exportCSV(svc, document.getElementById('fromDate').value, document.getElementById('toDate').value);
     }
 

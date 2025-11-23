@@ -1,0 +1,29 @@
+{
+  "name": "Response Time Monitor",
+  "description": "Monitor czasu odpowiedzi serwisów internetowych",
+  "repository": "https://github.com/twoj-username/response-time-backend-1",
+  "logo": "https://node-js-sample.herokuapp.com/node.png",
+  "keywords": ["node", "express", "monitoring", "supabase"],
+  "env": {
+    "SUPABASE_URL": {
+      "description": "URL projektu Supabase (np. https://xxxxx.supabase.co)",
+      "required": true
+    },
+    "SUPABASE_ANON_KEY": {
+      "description": "Klucz anon/public z Supabase (Settings > API)",
+      "required": true
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
+
