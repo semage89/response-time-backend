@@ -453,10 +453,40 @@
     loadServices();
     
     // Event delegation na poziomie grid - działa zawsze, nawet dla pustych wykresów
+    // Używamy capture phase i sprawdzamy wszystkie możliwe przypadki
     grid.addEventListener('click', function(e) {
-      // Sprawdź czy kliknięto w .bar-chart lub jego dzieci
-      let chartEl = e.target.closest('.bar-chart');
-      if (!chartEl) return;
+      let chartEl = null;
+      
+      // Metoda 1: Sprawdź czy target jest .bar-chart
+      if (e.target.classList && e.target.classList.contains('bar-chart')) {
+        chartEl = e.target;
+      }
+      // Metoda 2: Sprawdź czy target jest .bar (dziecko .bar-chart)
+      else if (e.target.classList && e.target.classList.contains('bar')) {
+        chartEl = e.target.parentElement;
+      }
+      // Metoda 3: Użyj closest (może nie działać z pointer-events: none)
+      else {
+        chartEl = e.target.closest('.bar-chart');
+      }
+      
+      // Metoda 4: Jeśli nadal nie znaleziono, szukaj ręcznie w górę drzewa
+      if (!chartEl || !chartEl.classList || !chartEl.classList.contains('bar-chart')) {
+        let parent = e.target.parentElement;
+        let depth = 0;
+        while (parent && depth < 10) {
+          if (parent.classList && parent.classList.contains('bar-chart')) {
+            chartEl = parent;
+            break;
+          }
+          parent = parent.parentElement;
+          depth++;
+        }
+      }
+      
+      if (!chartEl || !chartEl.classList || !chartEl.classList.contains('bar-chart')) {
+        return; // Kliknięto poza wykresem
+      }
       
       e.preventDefault();
       e.stopPropagation();
@@ -465,12 +495,21 @@
       const idxStr = chartEl.getAttribute('data-idx');
       const idx = parseInt(idxStr, 10);
       
-      console.log('Grid click delegation:', { serviceId, idx, servicesLength: services.length });
+      console.log('Grid click delegation:', { 
+        serviceId, 
+        idx, 
+        servicesLength: services.length,
+        targetClass: e.target.className,
+        targetTag: e.target.tagName,
+        chartFound: !!chartEl
+      });
       
       if (serviceId && !isNaN(idx) && idx >= 0 && idx < services.length) {
         showModal(serviceId, idx);
+      } else {
+        console.error('Invalid chart click:', { serviceId, idx, servicesLength: services.length });
       }
-    });
+    }, true); // Capture phase dla pewności
 
     // --- Renderowanie listy usług ---
     function renderGrid() {
@@ -500,13 +539,35 @@
           </div>
         `
       }).join('');
-      // Ustaw style dla wykresów - event delegation jest już skonfigurowane na grid
+      // Ustaw style dla wykresów i dodaj bezpośredni handler jako backup
       setTimeout(()=>{
         document.querySelectorAll('.bar-chart').forEach(el=>{
           el.style.cursor = 'pointer';
           el.style.minHeight = '90px';
+          el.style.position = 'relative';
+          el.style.zIndex = '1';
+          
+          // Usuń poprzednie handlery
+          const newEl = el.cloneNode(true);
+          el.parentNode.replaceChild(newEl, el);
+          
+          // Dodaj bezpośredni handler jako backup (działa równolegle z event delegation)
+          const handleChartClick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const serviceId = this.getAttribute('data-id');
+            const idx = parseInt(this.getAttribute('data-idx'), 10);
+            console.log('Direct chart click:', { serviceId, idx, servicesLength: services.length });
+            if (serviceId && !isNaN(idx) && idx >= 0 && idx < services.length) {
+              showModal(serviceId, idx);
+            }
+          };
+          
+          // Dodaj zarówno click jak i mousedown dla pewności
+          newEl.addEventListener('click', handleChartClick, false);
+          newEl.addEventListener('mousedown', handleChartClick, false);
         });
-      }, 10);
+      }, 50);
     }
 
     // Test pojedynczego
