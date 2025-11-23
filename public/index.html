@@ -451,6 +451,26 @@
 
     // Inicjalizacja przy starcie
     loadServices();
+    
+    // Event delegation na poziomie grid - działa zawsze, nawet dla pustych wykresów
+    grid.addEventListener('click', function(e) {
+      // Sprawdź czy kliknięto w .bar-chart lub jego dzieci
+      let chartEl = e.target.closest('.bar-chart');
+      if (!chartEl) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const serviceId = chartEl.getAttribute('data-id');
+      const idxStr = chartEl.getAttribute('data-idx');
+      const idx = parseInt(idxStr, 10);
+      
+      console.log('Grid click delegation:', { serviceId, idx, servicesLength: services.length });
+      
+      if (serviceId && !isNaN(idx) && idx >= 0 && idx < services.length) {
+        showModal(serviceId, idx);
+      }
+    });
 
     // --- Renderowanie listy usług ---
     function renderGrid() {
@@ -480,39 +500,13 @@
           </div>
         `
       }).join('');
-      // interaktywność wykresów - obsługa kliknięć na całym obszarze wykresu
-      // Używamy event delegation dla lepszej niezawodności
+      // Ustaw style dla wykresów - event delegation jest już skonfigurowane na grid
       setTimeout(()=>{
-        // Usuń wszystkie stare handlery przez zastąpienie elementów
         document.querySelectorAll('.bar-chart').forEach(el=>{
-          const serviceId = el.getAttribute('data-id');
-          const idx = parseInt(el.getAttribute('data-idx'), 10);
-          const barsHTML = el.innerHTML;
-          
-          // Utwórz nowy element
-          const newChart = document.createElement('div');
-          newChart.className = 'bar-chart';
-          newChart.setAttribute('data-id', serviceId);
-          newChart.setAttribute('data-idx', idx);
-          newChart.setAttribute('title', 'Kliknij, by zobaczyć szczegóły');
-          newChart.innerHTML = barsHTML;
-          newChart.style.cursor = 'pointer';
-          
-          // Dodaj handler kliknięcia
-          newChart.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            const id = this.getAttribute('data-id');
-            const index = parseInt(this.getAttribute('data-idx'), 10);
-            if (id && !isNaN(index) && index >= 0 && index < services.length) {
-              showModal(id, index);
-            }
-          });
-          
-          // Zamień stary element na nowy
-          el.parentNode.replaceChild(newChart, el);
+          el.style.cursor = 'pointer';
+          el.style.minHeight = '90px';
         });
-      }, 50);
+      }, 10);
     }
 
     // Test pojedynczego
@@ -597,7 +591,19 @@
 
     // --- MODAL: szczegóły ---
     async function showModal(serviceId, idx) {
+      console.log('showModal called:', { serviceId, idx, servicesLength: services.length });
+      
+      if (!services || idx < 0 || idx >= services.length) {
+        console.error('Invalid service index:', { idx, servicesLength: services.length });
+        return;
+      }
+      
       const svc = services[idx];
+      
+      if (!svc) {
+        console.error('Service not found:', { idx, services });
+        return;
+      }
       document.getElementById('modalTitle').innerText = svc.name+' - analiza szczegółowa';
       document.getElementById('fromDate').value = '';
       document.getElementById('toDate').value = '';
