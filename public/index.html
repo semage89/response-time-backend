@@ -685,21 +685,24 @@
         return;
       }
       document.getElementById('modalTitle').innerText = svc.name+' - analiza szczegółowa';
-      document.getElementById('fromDate').value = '';
-      document.getElementById('toDate').value = '';
       
-      // Pobierz pełną historię z API
-      try {
-        const res = await fetch(`/api/services/${serviceId}/tests?limit=1000`);
-        if (res.ok) {
-          const fullHistory = await res.json();
-          svc.history = fullHistory.reverse(); // Odwróć, aby najstarsze były pierwsze
-        }
-      } catch(e) {
-        console.error('Error loading test history:', e);
-      }
+      // Ustaw domyślne daty: ostatnie 24h
+      const now = new Date();
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       
-      drawModalChart(svc, null, null);
+      const formatDate = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const fromDateValue = formatDate(yesterday);
+      const toDateValue = formatDate(now);
+      
+      document.getElementById('fromDate').value = fromDateValue;
+      document.getElementById('toDate').value = toDateValue;
+      
       modalBG.style.display = '';
       document.getElementById('closeModal').onclick = ()=> modalBG.style.display = 'none';
       
@@ -725,6 +728,9 @@
       document.getElementById('fromDate').onchange = updateChart;
       document.getElementById('toDate').onchange = updateChart;
       document.getElementById('exportBtn').onclick = () => exportCSV(svc, document.getElementById('fromDate').value, document.getElementById('toDate').value);
+      
+      // Załaduj dane z domyślnym filtrem 24h
+      await updateChart();
     }
 
     function filterHistory(svc, from, to) {
