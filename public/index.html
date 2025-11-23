@@ -831,13 +831,13 @@
       }
     }, 60000); // Odświeżaj co 60 sekund (1 minuta)
     
-    // --- Automatyczne testy co 30 minut (1800000 ms = 30 min) ---
+    // --- Automatyczne testy co 60 sekund (60000 ms = 1 min) ---
     setInterval(() => { 
       services.forEach((svc, idx) => {
         const serviceId = svc.id || idx;
         testNow(serviceId, idx);
       });
-    }, 1800000); // 30 minut = 1800000 milisekund
+    }, 60000); // 60 sekund = 60000 milisekund
   </script>
 </body>
 </html>
