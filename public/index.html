@@ -8,15 +8,19 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
     :root {
-      --axabee-primary: #0066FF;
-      --axabee-primary-dark: #0052CC;
-      --axabee-secondary: #1E293B;
+      --axabee-primary: #FFFFFF;
+      --axabee-primary-dark: #E5E5E5;
+      --axabee-secondary: #1A1A1A;
       --axabee-accent: #10B981;
-      --axabee-bg: #F8FAFC;
-      --axabee-text: #1E293B;
-      --axabee-text-light: #64748B;
-      --axabee-border: #E2E8F0;
+      --axabee-bg: #0A0A0A;
+      --axabee-bg-card: #1A1A1A;
+      --axabee-text: #FFFFFF;
+      --axabee-text-light: #B3B3B3;
+      --axabee-text-muted: #808080;
+      --axabee-border: #2A2A2A;
+      --axabee-border-light: #333333;
       --axabee-error: #EF4444;
+      --axabee-red-accent: #FF0000;
     }
     
     * { box-sizing: border-box; }
@@ -27,6 +31,7 @@
       margin: 0; 
       color: var(--axabee-text);
       line-height: 1.6;
+      min-height: 100vh;
     }
     
     .container { 
@@ -41,7 +46,7 @@
       gap: 16px;
       margin-bottom: 32px;
       padding-bottom: 24px;
-      border-bottom: 2px solid var(--axabee-border);
+      border-bottom: 1px solid var(--axabee-border);
     }
     
     .logo-container {
@@ -58,19 +63,25 @@
     .logo-header .logo-text {
       font-family: 'Inter', sans-serif;
       letter-spacing: -0.5px;
+      color: var(--axabee-text);
+    }
+    
+    .logo-header .logo-img {
+      filter: brightness(0) invert(1);
     }
     
     .header { 
       font-size: 1.5rem; 
-      font-weight: 600; 
+      font-weight: 500; 
       margin-bottom: 24px; 
       color: var(--axabee-text);
+      letter-spacing: -0.02em;
     }
     .service-grid { display: flex; flex-wrap: wrap; gap: 28px; }
     .service-card { 
-      background: #fff; 
+      background: var(--axabee-bg-card); 
       border-radius: 12px; 
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06); 
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3), 0 2px 4px rgba(0,0,0,0.2); 
       padding: 24px; 
       flex: 1; 
       min-width: 320px; 
@@ -78,12 +89,13 @@
       display: flex; 
       flex-direction: column;
       border: 1px solid var(--axabee-border);
-      transition: box-shadow 0.2s, transform 0.2s;
+      transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
     }
     
     .service-card:hover {
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.06);
+      box-shadow: 0 8px 12px rgba(0,0,0,0.4), 0 4px 6px rgba(0,0,0,0.3);
       transform: translateY(-2px);
+      border-color: var(--axabee-border-light);
     }
     
     .card-header { 
@@ -93,14 +105,14 @@
       margin-bottom: 8px; 
     }
     .card-sub { 
-      color: var(--axabee-text-light); 
+      color: var(--axabee-text-muted); 
       margin-bottom: 16px; 
       font-size: 0.9rem;
     }
     .bar-chart { display: flex; align-items: flex-end; height: 90px; margin-bottom: 10px; gap: 3px; cursor: pointer; }
     .bar { width: 12px; border-radius: 4px 4px 0 0; transition: background .2s; position: relative; pointer-events: none;}
     .bar.ok { background: var(--axabee-accent); }
-    .bar.err { background: var(--axabee-error); }
+    .bar.err { background: var(--axabee-red-accent); }
     .bar:hover::after {
       content: attr(data-tooltip);
       position: absolute;
@@ -113,34 +125,39 @@
     .test-btn { 
       flex: 7; 
       padding: 10px 0; 
-      background: var(--axabee-primary); 
-      color: #fff; 
+      background: var(--axabee-text); 
+      color: var(--axabee-bg); 
       border: none; 
       border-top-left-radius: 8px; 
       border-bottom-left-radius: 8px; 
-      font-weight: 600; 
+      font-weight: 500; 
       font-size: 0.95rem; 
       cursor: pointer; 
-      transition: background .2s;
+      transition: background .2s, opacity .2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .test-btn:hover { 
       background: var(--axabee-primary-dark); 
+      opacity: 0.9;
     }
     .delete-btn { 
       flex: 3; 
       padding: 10px 0; 
-      background: var(--axabee-error); 
-      color: #fff; 
-      border: none; 
+      background: transparent; 
+      color: var(--axabee-text-light); 
+      border: 1px solid var(--axabee-border); 
       border-top-right-radius: 8px; 
       border-bottom-right-radius: 8px; 
       font-size: 0.95rem; 
-      font-weight: 600; 
+      font-weight: 500; 
       cursor: pointer;
-      transition: background .2s;
+      transition: background .2s, border-color .2s, color .2s;
     }
     .delete-btn:hover { 
-      background: #DC2626; 
+      background: var(--axabee-bg-card);
+      border-color: var(--axabee-red-accent);
+      color: var(--axabee-red-accent);
     }
     .modal-bg { 
       position: fixed; 
@@ -148,7 +165,7 @@
       left:0; 
       width: 100vw; 
       height: 100vh; 
-      background: rgba(30, 41, 59, 0.5); 
+      background: rgba(0, 0, 0, 0.8); 
       display: flex; 
       align-items: center; 
       justify-content: center; 
@@ -156,10 +173,10 @@
       backdrop-filter: blur(4px);
     }
     .modal-content { 
-      background: #fff; 
+      background: var(--axabee-bg-card); 
       border-radius: 12px; 
       padding: 32px 24px; 
-      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); 
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5), 0 10px 10px -5px rgba(0,0,0,0.3); 
       max-width: 820px; 
       width: 100%; 
       position: relative;
@@ -184,7 +201,7 @@
     }
     .close-modal:hover {
       background: var(--axabee-bg);
-      color: var(--axabee-error);
+      color: var(--axabee-text);
     }
     .detail-chart { width: 100%; height: 220px; margin-bottom: 14px; }
     .date-filter { 
@@ -206,11 +223,12 @@
       font-size: 0.9rem;
       font-family: inherit;
       color: var(--axabee-text);
+      background: var(--axabee-bg);
     }
     .date-filter input[type="date"]:focus {
       outline: none;
-      border-color: var(--axabee-primary);
-      box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+      border-color: var(--axabee-text);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
     }
     .stats-table { 
       border-collapse: collapse; 
@@ -231,22 +249,25 @@
       color: var(--axabee-text);
     }
     .stats-table td {
-      color: var(--axabee-text-light);
+      color: var(--axabee-text-muted);
     }
     .export-btn { 
       margin-top: 10px; 
       padding: 10px 24px; 
-      background: var(--axabee-primary); 
-      color: #fff; 
+      background: var(--axabee-text); 
+      color: var(--axabee-bg); 
       border: none; 
       border-radius: 8px; 
-      font-weight: 600; 
+      font-weight: 500; 
       font-size: 0.95rem; 
       cursor: pointer;
-      transition: background .2s;
+      transition: background .2s, opacity .2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .export-btn:hover {
       background: var(--axabee-primary-dark);
+      opacity: 0.9;
     }
     
     /* Formularz - równomierne odstępy */
@@ -256,9 +277,9 @@
       align-items: flex-end;
       margin-bottom: 32px;
       padding: 24px;
-      background: #fff;
+      background: var(--axabee-bg-card);
       border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       border: 1px solid var(--axabee-border);
     }
     
@@ -283,37 +304,40 @@
       font-size: 0.95rem;
       font-family: inherit;
       color: var(--axabee-text);
-      background: #fff;
+      background: var(--axabee-bg);
       transition: border-color 0.2s, box-shadow 0.2s;
       box-sizing: border-box;
     }
     
     .input:focus {
       outline: none;
-      border-color: var(--axabee-primary);
-      box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+      border-color: var(--axabee-text);
+      box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
     }
     
     .input::placeholder {
-      color: var(--axabee-text-light);
+      color: var(--axabee-text-muted);
     }
     
     #addForm button[type="submit"] {
       padding: 12px 24px;
-      background: var(--axabee-primary);
-      color: #fff;
+      background: var(--axabee-text);
+      color: var(--axabee-bg);
       border: none;
       border-radius: 8px;
       font-size: 0.95rem;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
-      transition: background .2s;
+      transition: background .2s, opacity .2s;
       white-space: nowrap;
       height: fit-content;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     
     #addForm button[type="submit"]:hover {
       background: var(--axabee-primary-dark);
+      opacity: 0.9;
     }
     
     @media (max-width: 768px) {
@@ -337,7 +361,7 @@
       </div>
       <div>
         <h1 class="header" style="margin: 0;">Monitoruj czas odpowiedzi serwisów</h1>
-        <p style="margin: 4px 0 0 0; color: var(--axabee-text-light); font-size: 0.9rem;">Monitorowanie w czasie rzeczywistym</p>
+        <p style="margin: 4px 0 0 0; color: var(--axabee-text-muted); font-size: 0.9rem;">Monitorowanie w czasie rzeczywistym</p>
       </div>
     </div>
     <form id="addForm">
@@ -427,7 +451,7 @@
             <div class="card-sub">${svc.url}</div>
             <div class="bar-chart" data-id="${serviceId}" data-idx="${idx}" title="Kliknij, by zobaczyć szczegóły">${bars}</div>
             <div class="card-sub" style="margin-top:10px">
-              Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#10B981':'#EF4444'):'#64748B'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
+              Ostatnia odpowiedź: <span style="color:${last?(last.success ? '#10B981':'#FF0000'):'#808080'};font-weight:600;">${last? (last.responseTime !== null ? last.responseTime+'ms' : 'error') : '-'}</span><br>
               Średnia: <b>${avg ? avg+'ms' : '-'}</b><br>
               Ostatni test: <span>${last ? formatHour(last.timestamp) : '-'}</span><br>
               Próg: ${svc.threshold}ms
@@ -604,7 +628,7 @@
       // --- Wykres liniowy ---
       const xs = hist.map((_,i)=> i*(canvas.width/(hist.length-1)));
       const ys = hist.map(h=> canvas.height-Math.max(22, Math.min(canvas.height-34, h.responseTime/10)));
-      ctx.strokeStyle='#0066FF'; ctx.lineWidth=3; ctx.beginPath();
+      ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=3; ctx.beginPath();
       xs.forEach((x,i)=> ctx.lineTo(x,ys[i]));
       ctx.stroke();
 
